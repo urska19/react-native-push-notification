@@ -3,6 +3,7 @@ package com.dieam.reactnativepushnotification.modules;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.Application;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,8 +18,14 @@ import com.google.android.gms.gcm.GcmListenerService;
 
 import org.json.JSONObject;
 
+import java.io.DataOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
+import java.util.TimeZone;
 
 import static com.dieam.reactnativepushnotification.modules.RNPushNotification.LOG_TAG;
 
@@ -49,6 +56,42 @@ public class RNPushNotificationListenerService extends GcmListenerService {
 
         Log.v(LOG_TAG, "onMessageReceived: " + bundle);
 
+        if (bundle.containsKey("google.message_id") && bundle.containsKey("appName") && bundle.containsKey("urlPath")) {
+
+            try {
+                String appName = bundle.getString("appName");
+                String urlPath = bundle.getString("urlPath");
+
+                Resources res = getBaseContext().getPackageManager().getResourcesForApplication(appName);
+                String urlAddress = res.getString(res.getIdentifier("urlPath", "string", "appName"));
+
+                URL url = new URL(urlAddress);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+                conn.setDoInput(true);
+
+                JSONObject jsonParam = new JSONObject();
+                jsonParam.put("messageId", bundle.get("google.message_id"));
+                jsonParam.put("pushNotificationReceived", getUtcDateTimeNow());
+
+                DataOutputStream os = new DataOutputStream(conn.getOutputStream());
+                os.writeBytes(jsonParam.toString());
+
+                os.flush();
+                os.close();
+
+                Log.i("STATUS", String.valueOf(conn.getResponseCode()));
+                Log.i("MSG", conn.getResponseMessage());
+
+                conn.disconnect();
+
+            } catch (Exception e) {
+                Log.v(LOG_TAG, "pushNotificationReceived Exception", e);
+            }
+        }
         // We need to run this on the main thread, as the React code assumes that is true.
         // Namely, DevServerHelper constructs a Handler() without a Looper, which triggers:
         // "Can't create handler inside thread that has not called Looper.prepare()"
@@ -75,6 +118,22 @@ public class RNPushNotificationListenerService extends GcmListenerService {
                 }
             }
         });
+    }
+
+    public static String getUtcDateTimeNow() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        TimeZone timeZone = TimeZone.getTimeZone("UTC");
+        dateFormat.setTimeZone(timeZone);
+        String dateUtcNowString = dateFormat.format(new Date());
+        /*SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        Date date = null;
+        try {
+            date = format.parse(dateUtcNowString);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "ERROR", e);
+        }
+        return date;*/
+        return dateUtcNowString;
     }
 
     private JSONObject getPushData(String dataString) {
