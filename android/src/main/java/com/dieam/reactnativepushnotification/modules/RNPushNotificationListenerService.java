@@ -63,7 +63,7 @@ public class RNPushNotificationListenerService extends GcmListenerService {
                 String urlPath = bundle.getString("urlPath");
 
                 Resources res = getBaseContext().getPackageManager().getResourcesForApplication(appName);
-                String urlAddress = res.getString(res.getIdentifier("urlPath", "string", "appName"));
+                String urlAddress = res.getString(res.getIdentifier(urlPath, "string", appName));
 
                 URL url = new URL(urlAddress);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
