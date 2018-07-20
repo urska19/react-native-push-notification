@@ -42,6 +42,9 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         for(Map.Entry<String, String> entry : message.getData().entrySet()) {
             bundle.putString(entry.getKey(), entry.getValue());
         }
+        if(message.getMessageId() != null)
+            bundle.putString("google.message_id", message.getMessageId());
+
         JSONObject data = getPushData(bundle.getString("data"));
         // Copy `twi_body` to `message` to support Twilio
         if (bundle.containsKey("twi_body")) {
